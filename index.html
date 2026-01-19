@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Proyectos - Multiequipos</title>
+    <!-- Iconos -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- FULLCALENDAR (Librería del Calendario) -->
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
+    
+    <!-- CONFIGURACIÓN PWA -->
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="./logo.png">
+
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --secondary: #64748b;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-light: #f1f5f9;
+            --white: #ffffff;
+            --dark: #0f172a;
+            --border: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --maint-color: #334155;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-light);
+            color: var(--dark);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- Utilidades --- */
+        .hidden { display: none !important; }
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-primary:hover { background-color: var(--primary-dark); }
+        .btn-maintenance { background-color: var(--maint-color); color: white; }
+        .btn-secondary { background-color: var(--white); border: 1px solid var(--border); color: var(--dark); }
+        .btn-secondary:hover { background-color: var(--bg-light); }
+        .btn-danger { background-color: var(--danger); color: white; }
+        .btn-sm { padding: 0.25rem 0.5rem; font-size: 0.875rem; }
+        .text-danger { color: var(--danger); }
+        .text-success { color: var(--success); }
+        .text-warning { color: var(--warning); }
+        .text-primary { color: var(--primary); }
+        .text-secondary { color: var(--secondary); }
+        .text-sm { font-size: 0.875rem; }
+
+        /* --- Login Screen --- */
+        #login-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, var(--primary), var(--dark));
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .login-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+            text-align: center;
+        }
+
+        .login-card i {
+            font-size: 3rem;
+            color: var(--primary);
+            margin-bottom: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 0.375rem;
+            font-size: 1rem;
+            -webkit-appearance: none;
+        }
+
+        /* --- App Layout --- */
+        #app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        header {
+            background: var(--white);
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .logo {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Stats Bar (Solo visible en Proyectos) */
+        .stats-bar {
+            display: flex;
+            gap: 0.5rem;
+            overflow-x: auto;
+            padding: 0.5rem 1rem;
+            background: var(--bg-light);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            scrollbar-width: none;
+        }
+        .stats-bar::-webkit-scrollbar { display: none; }
+
+        .stat-card {
+            background: white;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border);
+            min-width: 90px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .stat-number { font-size: 1.25rem; font-weight: 700; }
+        .stat-label { font-size: 0.65rem; color: var(--secondary); text-transform: uppercase; }
+
+        main {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- Kanban Board (PROYECTOS) --- */
+        .board {
+            display: flex;
+            gap: 1rem;
+            width: 100%;
+            height: 100%;
+            overflow-x: auto;
+            padding: 1rem;
+        }
+
+        .column {
+            flex: 1;
+            min-width: 300px;
+            background: #eef2f6;
+            border-radius: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            max-height: 100%;
+        }
+
+        .column-header {
+            padding: 1rem;
+            font-weight: 700;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            background: rgba(255,255,255,0.5);
+            border-radius: 0.5rem 0.5rem 0 0;
+        }
+
+        .column-body {
+            padding: 0.5rem;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        /* --- Project Card --- */
+        .project-card {
+            background: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 0.75rem;
+            cursor: pointer;
+            border-left: 4px solid transparent;
+            transition: transform 0.2s;
+        }
+
+        .project-card:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .project-card.urgency-alta { border-left-color: var(--danger); }
+        .project-card.urgency-media { border-left-color: var(--warning); }
+        .project-card.urgency-baja { border-left-color: var(--success); }
+
+        .card-title { font-weight: 600; margin-bottom: 0.5rem; display: block; font-size: 1rem;}
+        .card-info { font-size: 0.85rem; color: var(--secondary); margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.5rem; }
+        .card-footer {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid var(--bg-light);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+        }
+        .badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 1rem;
+            background: #e2e8f0;
+            font-weight: 600;
+            font-size: 0.7rem;
+        }
+
+        /* --- VISTA MANTENIMIENTOS (LISTA CLIENTES) --- */
+        #view-maintenance {
+            padding: 1rem;
+            height: 100%;
+            overflow-y: auto;
+        }
+        .maint-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+        .maint-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .maint-card:hover { border-color: var(--maint-color); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .maint-title { font-weight: 700; color: var(--maint-color); font-size: 1.1rem; margin-bottom: 0.5rem; }
+
+        /* --- Calendario --- */
+        #view-calendar {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            background: white;
+            display: flex;
+            flex-direction: column;
+        }
+        .fc { height: 100% !important; flex: 1; }
+        .fc .fc-toolbar-title { font-size: 1.2rem; }
+        .fc .fc-toolbar button { background-color: var(--primary); border: none; color: white; }
+        .fc .fc-toolbar button:hover { background-color: var(--primary-dark); }
+        .fc-event-maintenance { background-color: var(--maint-color) !important; border-color: var(--maint-color) !important; cursor: pointer; }
+        .fc-event-project { cursor: pointer; }
+
+        /* --- Modals --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 500;
+            padding: 1rem;
+            backdrop-filter: blur(2px);
+        }
+
+        .modal {
+            background: white;
+            border-radius: 0.75rem;
+            width: 100%;
+            max-width: 600px;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+        }
+
+        .modal-header {
+            padding: 1.25rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-light);
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            background: var(--bg-light);
+        }
+
+        /* --- Tabs inside Modal --- */
+        .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
+        .tab-btn {
+            flex: 1;
+            padding: 0.75rem;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--secondary);
+        }
+        .tab-btn.active { border-bottom-color: var(--primary); color: var(--primary); }
+        
+        /* --- History & Notes (Proyectos) --- */
+        .history-item {
+            padding: 0.75rem;
+            border-left: 2px solid var(--border);
+            margin-bottom: 0.75rem;
+            background: var(--bg-light);
+            font-size: 0.9rem;
+        }
+        .history-date { font-size: 0.75rem; color: var(--secondary); display: block; margin-bottom: 0.25rem; }
+        .change-detail { margin-top: 5px; font-size: 0.85rem; display: flex; flex-direction: column; gap: 2px; }
+        .change-field { font-weight: bold; color: var(--dark); }
+        .change-arrow { color: var(--primary); margin: 0 5px; }
+        .change-old { color: var(--danger); text-decoration: line-through; margin-right: 5px; }
+        .change-new { color: var(--success); font-weight: 500; }
+        
+        /* --- Checklist Mantenimientos --- */
+        .checklist-wrapper { border: 1px solid var(--border); border-radius: 0.5rem; overflow: hidden; }
+        .checklist-item {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            background: white;
+            transition: background 0.2s;
+        }
+        .checklist-item:last-child { border-bottom: none; }
+        .checklist-item.done { background-color: #f0fdf4; }
+        
+        .check-row { display: flex; align-items: center; gap: 1rem; }
+        .check-box { width: 20px; height: 20px; accent-color: var(--success); cursor: pointer; }
+        .check-date { font-weight: 600; color: var(--dark); }
+        .check-status { font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; background: #e2e8f0; }
+        .check-status.done { background: var(--success); color: white; }
+
+        .check-comment-box {
+            margin-top: 0.5rem;
+            padding-left: 2.5rem; /* alinear con el texto */
+        }
+        .comment-input { width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px; font-size: 0.85rem; margin-bottom: 0.5rem; }
+
+        .history-list-maint { margin-top: 1rem; }
+        .history-item-maint {
+            font-size: 0.85rem;
+            padding: 0.5rem;
+            border-left: 3px solid var(--maint-color);
+            background: #f8fafc;
+            margin-bottom: 0.5rem;
+        }
+        .history-comment { font-style: italic; color: var(--secondary); margin-top: 2px; }
+
+
+        /* --- Toast Notification --- */
+        #toast-container {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .toast {
+            padding: 1rem;
+            border-radius: 0.375rem;
+            background: var(--dark);
+            color: white;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+            animation: slideIn 0.3s ease-out;
+            min-width: 250px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .board { flex-direction: column; overflow-x: hidden; overflow-y: auto; }
+            .column { min-width: 100%; height: auto; margin-bottom: 1rem; }
+            .column-body { max-height: 400px; }
+            header { padding: 0.75rem 1rem; flex-direction: column; }
+            .header-actions { width: 100%; display: flex; justify-content: space-between; margin-top: 10px; }
+            .logo span { font-size: 1rem; }
+            .stats-bar { padding: 0.5rem; gap: 0.25rem; }
+            .stat-card { min-width: 70px; padding: 0.4rem; }
+            .stat-number { font-size: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Notification Area -->
+    <div id="toast-container"></div>
+
+    <!-- Login Screen -->
+    <div id="login-screen">
+        <div class="login-card">
+            <i class="fas fa-hard-hat fa-3x" style="color: var(--primary); margin-bottom: 1rem;"></i>
+            <h2>Multiequipos</h2>
+            <p style="color: var(--secondary); margin-bottom: 1.5rem; font-size: 0.9rem;">Gestión de Proyectos y Mantenimientos</p>
+            <form id="login-form">
+                <div class="form-group">
+                    <input type="email" id="username" class="form-control" placeholder="Ingrese su email" required autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <input type="password" id="password" class="form-control" placeholder="Ingrese su contraseña" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Ingresar</button>
+            </form>
+            <p id="login-error" class="text-danger hidden" style="margin-top: 1rem; font-size: 0.875rem;">Email o contraseña incorrectos.</p>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="app-container" class="hidden">
+        <header>
+            <div class="logo"><i class="fas fa-cubes"></i> <span>Multiequipos</span></div>
+            <div class="header-actions" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                <!-- Navegación Principal -->
+                <button id="btn-view-projects" class="btn btn-primary" title="Ver Proyectos">
+                    <i class="fas fa-columns"></i> <span class="btn-text">Proyectos</span>
+                </button>
+                <button id="btn-view-maintenance" class="btn btn-secondary" title="Ver Mantenimientos">
+                    <i class="fas fa-sync-alt"></i> <span class="btn-text hidden-mobile">Mant.</span>
+                </button>
+                <button id="btn-view-calendar" class="btn btn-secondary" title="Ver Calendario">
+                    <i class="fas fa-calendar-alt"></i>
+                </button>
+                
+                <div style="border-left: 1px solid var(--border); height: 20px; margin: 0 5px;"></div>
+                
+                <button id="btn-add" class="btn btn-primary">
+                    <i class="fas fa-plus"></i>
+                </button>
+                <button id="btn-logout" class="btn btn-secondary btn-sm">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Stats Bar (Solo visible en Proyectos) -->
+        <div id="stats-bar" class="stats-bar">
+            <div class="stat-card">
+                <span class="stat-number" id="stat-total">0</span>
+                <span class="stat-label">Total</span>
+            </div>
+            <div class="stat-card" style="border-left: 4px solid var(--secondary);">
+                <span class="stat-number" id="stat-pending">0</span>
+                <span class="stat-label">Pend.</span>
+            </div>
+            <div class="stat-card" style="border-left: 4px solid var(--primary);">
+                <span class="stat-number" id="stat-process">0</span>
+                <span class="stat-label">Proc.</span>
+            </div>
+            <div class="stat-card" style="border-left: 4px solid var(--success);">
+                <span class="stat-number" id="stat-done">0</span>
+                <span class="stat-label">Real.</span>
+            </div>
+        </div>
+
+        <main>
+            <!-- Search (Visible en Proyectos) -->
+            <div id="search-container" style="position: absolute; top: 10px; right: 15px; z-index: 10;">
+                <input type="text" id="search-input" class="form-control" placeholder="Buscar..." style="width: 140px; font-size: 0.85rem;">
+            </div>
+
+            <!-- Board (Kanban) -->
+            <div id="view-board" class="board">
+                <!-- Pendiente -->
+                <div class="column">
+                    <div class="column-header">
+                        <span><i class="fas fa-clock"></i> Pendiente</span>
+                        <span id="count-pending" class="badge bg-secondary">0</span>
+                    </div>
+                    <div class="column-body" id="col-pending" data-status="pendiente"></div>
+                </div>
+
+                <!-- En Proceso -->
+                <div class="column">
+                    <div class="column-header">
+                        <span style="color: var(--primary);"><i class="fas fa-spinner"></i> En Proc.</span>
+                        <span id="count-process" class="badge">0</span>
+                    </div>
+                    <div class="column-body" id="col-process" data-status="en_proceso"></div>
+                </div>
+
+                <!-- Realizado -->
+                <div class="column">
+                    <div class="column-header">
+                        <span style="color: var(--success);"><i class="fas fa-check-circle"></i> Realizado</span>
+                        <span id="count-done" class="badge">0</span>
+                    </div>
+                    <div class="column-body" id="col-done" data-status="realizado"></div>
+                </div>
+            </div>
+
+            <!-- Vista Mantenimientos -->
+            <div id="view-maintenance" class="hidden">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                    <h3 style="color:var(--maint-color)">Mantenimientos Programados</h3>
+                    <small class="text-secondary">Clientes con plan recurrente</small>
+                </div>
+                <div id="maint-list-container" class="maint-grid"></div>
+            </div>
+
+            <!-- Calendar View -->
+            <div id="view-calendar" class="hidden"></div>
+        </main>
+    </div>
+
+    <!-- MODAL FORMULARIO (Compartido para Proyectos y Mantenimientos) -->
+    <div id="modal-form" class="modal-overlay hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modal-title">Nuevo Registro</h3>
+                <button class="btn btn-sm btn-secondary close-modal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="project-form">
+                    <input type="hidden" id="record-id">
+                    <input type="hidden" id="record-type" value="project"> <!-- 'project' o 'maintenance' -->
+
+                    <div class="form-group">
+                        <label>Nombre / Cliente *</label>
+                        <input type="text" id="p-name" class="form-control" required>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Persona Contacto</label>
+                            <input type="text" id="p-contact" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Teléfono</label>
+                            <input type="tel" id="p-phone" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Ubicación</label>
+                        <input type="text" id="p-location" class="form-control">
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <!-- Campos SOLO Proyecto -->
+                        <div class="form-group" id="group-proj-date">
+                            <label>Fecha Entrega</label>
+                            <input type="date" id="p-date" class="form-control">
+                        </div>
+                        <div class="form-group" id="group-proj-urgency">
+                            <label>Urgencia</label>
+                            <select id="p-urgency" class="form-control">
+                                <option value="baja">Baja</option>
+                                <option value="media" selected>Media</option>
+                                <option value="alta">Alta</option>
+                            </select>
+                        </div>
+
+                        <!-- Campos SOLO Mantenimiento -->
+                        <div class="form-group hidden" id="group-maint-start">
+                            <label>Fecha Inicio</label>
+                            <input type="date" id="p-start-date" class="form-control">
+                        </div>
+                        <div class="form-group hidden" id="group-maint-period">
+                            <label>Periodo (Meses)</label>
+                            <input type="number" id="p-period" class="form-control" min="1" max="24" value="1">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Alcance / Descripción</label>
+                        <textarea id="p-scope" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Información Adicional</label>
+                        <textarea id="p-additional" class="form-control" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary close-modal">Cancelar</button>
+                <button type="button" id="btn-save-project" class="btn btn-primary">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Details Modal (PROYECTOS - Original) -->
+    <div id="modal-details" class="modal-overlay hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="d-title">Detalles</h3>
+                <button class="btn btn-sm btn-secondary close-modal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="tab-info">Información</button>
+                    <button class="tab-btn" data-tab="tab-notes">Historial</button>
+                </div>
+
+                <!-- Tab Info -->
+                <div id="tab-info" class="tab-content">
+                    <div style="margin-bottom: 1rem;">
+                        <label class="text-secondary text-sm">Estado Actual</label>
+                        <select id="d-status" class="form-control" style="margin-top: 0.25rem;">
+                            <option value="pendiente">Pendiente</option>
+                            <option value="en_proceso">En Proceso</option>
+                            <option value="realizado">Realizado</option>
+                        </select>
+                    </div>
+                    <div id="info-content"></div>
+                    <div style="margin-top: 2rem; display: flex; justify-content: space-between;">
+                        <button id="btn-edit-details" class="btn btn-secondary"><i class="fas fa-edit"></i> Editar</button>
+                        <button id="btn-delete-project" class="btn btn-danger"><i class="fas fa-trash"></i> Eliminar</button>
+                    </div>
+                </div>
+
+                <!-- Tab Notes/History -->
+                <div id="tab-notes" class="tab-content hidden">
+                    <div class="form-group" style="background: var(--bg-light); padding: 1rem; border-radius: 0.5rem;">
+                        <label>Agregar Nota</label>
+                        <textarea id="new-note" class="form-control" rows="2" placeholder="Ej: Se enviaron los materiales..."></textarea>
+                        <button id="btn-add-note" class="btn btn-primary btn-sm" style="margin-top: 0.5rem;">Agregar</button>
+                    </div>
+                    <h4 style="margin: 1rem 0 0.5rem 0; font-size: 0.9rem;">Historial de Cambios</h4>
+                    <div id="history-list" style="max-height: 300px; overflow-y: auto;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Detalles Mantenimiento (ACTUALIZADO) -->
+    <div id="modal-maintenance-details" class="modal-overlay hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="md-title">Detalles Mantenimiento</h3>
+                <button class="btn btn-sm btn-secondary close-modal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <!-- Info del Cliente -->
+                <div style="margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid var(--border);">
+                    <div style="display:flex; justify-content:space-between; align-items:start;">
+                        <div style="flex:1;">
+                            <h4 style="color:var(--maint-color); margin-bottom:0.25rem;" id="md-client-name"></h4>
+                            <div class="text-sm text-secondary"><i class="fas fa-user"></i> <span id="md-contact"></span></div>
+                            <div class="text-sm text-secondary"><i class="fas fa-map-marker-alt"></i> <span id="md-location"></span></div>
+                            <div class="text-sm text-secondary"><i class="fas fa-phone"></i> <span id="md-phone"></span></div>
+                            
+                            <!-- NUEVO: ALCANCE -->
+                            <div style="margin-top:0.5rem;">
+                                <label class="text-sm text-secondary">Alcance:</label>
+                                <div style="background:#f8fafc; padding:0.5rem; border-radius:4px; font-size:0.9rem;" id="md-scope"></div>
+                            </div>
+                        </div>
+                        
+                        <div style="display:flex; gap:0.5rem; margin-left:1rem;">
+                            <button id="md-btn-edit" class="btn btn-sm btn-secondary"><i class="fas fa-edit"></i></button>
+                            <!-- NUEVO: BOTÓN ELIMINAR -->
+                            <button id="md-btn-delete" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabs: Checklist e Historial -->
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="md-check">Checklist</button>
+                    <button class="tab-btn" data-tab="md-hist">Historial</button>
+                </div>
+
+                <!-- Tab Checklist -->
+                <div id="md-check" class="tab-content">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                        <small class="text-secondary">Periodos generados: <span id="md-period-val"></span> mes(es)</small>
+                    </div>
+                    <div id="md-checklist-wrapper" class="checklist-wrapper">
+                        <!-- Items generados dinamicamente -->
+                    </div>
+                </div>
+
+                <!-- Tab Historial -->
+                <div id="md-hist" class="tab-content hidden">
+                    <h5 class="text-secondary" style="margin-bottom:0.5rem;">Registro de Mantenimientos Realizados</h5>
+                    <div id="md-history-list" style="max-height: 300px; overflow-y: auto;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // --- 1. IMPORTAR FIREBASE ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+        import { 
+            getFirestore, 
+            collection, 
+            addDoc, 
+            updateDoc, 
+            deleteDoc, 
+            doc, 
+            onSnapshot, 
+            query, 
+            orderBy 
+        } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+        import { 
+            getAuth, 
+            signInWithEmailAndPassword, 
+            signOut, 
+            onAuthStateChanged 
+        } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+
+        // --- 2. CONFIGURACIÓN DE FIREBASE ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyDmr0OxeUQGI-XnWaHwmTkJYccG7yM58T8",
+            authDomain: "multiequipos-app-c0f80.firebaseapp.com",
+            projectId: "multiequipos-app-c0f80",
+            storageBucket: "multiequipos-app-c0f80.firebasestorage.app",
+            messagingSenderId: "167104291774",
+            appId: "1:167104291774:web:b86324beda11a3cc6b0bef"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        const projectsRef = collection(db, "projects");
+        const maintenancesRef = collection(db, "maintenances");
+
+        let state = {
+            user: null,
+            projects: [],
+            maintenances: [],
+            calendar: null,
+            currentView: 'board' // board | maintenance | calendar
+        };
+
+        // --- Auth Module ---
+        const Auth = {
+            check: () => {
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        state.user = user.email;
+                        App.show();
+                        DB.listen();
+                    } else {
+                        document.getElementById('login-screen').classList.remove('hidden');
+                        document.getElementById('app-container').classList.add('hidden');
+                    }
+                });
+            },
+            login: (u, p) => {
+                signInWithEmailAndPassword(auth, u, p)
+                    .then(() => {
+                        document.getElementById('login-error').classList.add('hidden');
+                        document.getElementById('login-form').reset();
+                    })
+                    .catch((error) => {
+                        document.getElementById('login-error').classList.remove('hidden');
+                        console.error(error);
+                    });
+            },
+            logout: () => {
+                signOut(auth).then(() => location.reload());
+            }
+        };
+
+        // --- Data Module ---
+        const DB = {
+            listen: () => {
+                if(!state.user) return;
+
+                // Escuchar Proyectos
+                const qProjects = query(projectsRef, orderBy("dueDate", "asc"));
+                onSnapshot(qProjects, (snapshot) => {
+                    state.projects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    if(state.currentView === 'board') App.renderBoard();
+                    if(state.calendar) App.renderCalendar();
+                    App.updateStats();
+                }, (error) => console.error("Error Projects:", error));
+
+                // Escuchar Mantenimientos
+                const qMaint = query(maintenancesRef, orderBy("name", "asc"));
+                onSnapshot(qMaint, (snapshot) => {
+                    state.maintenances = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    if(state.currentView === 'maintenance') App.renderMaintenanceList();
+                    if(state.calendar) App.renderCalendar();
+                }, (error) => console.error("Error Maintenances:", error));
+            },
+            add: (data, type) => {
+                const collectionRef = type === 'maintenance' ? maintenancesRef : projectsRef;
+                const dataToSave = { ...data, createdAt: new Date() };
+                addDoc(collectionRef, dataToSave)
+                    .then(() => Toast.show(type === 'maintenance' ? 'Mantenimiento agendado' : 'Proyecto creado', 'success'))
+                    .catch(e => console.error(e));
+            },
+            update: (updatedData, type, id) => {
+                const ref = doc(db, type === 'maintenance' ? "maintenances" : "projects", id);
+                updateDoc(ref, updatedData)
+                    .then(() => Toast.show('Registro actualizado', 'success'))
+                    .catch(e => console.error(e));
+            },
+            delete: (id, type) => {
+                const ref = doc(db, type === 'maintenance' ? "maintenances" : "projects", id);
+                deleteDoc(ref)
+                    .then(() => Toast.show('Eliminado correctamente', 'warning'))
+                    .catch(e => console.error(e));
+            },
+            getById: (id, type) => {
+                const list = type === 'maintenance' ? state.maintenances : state.projects;
+                return list.find(item => item.id === id);
+            }
+        };
+
+        // --- LOGIC: MANTENIMIENTOS (Checklist + Historial) ---
+        const MaintLogic = {
+            generatePeriods: (maint) => {
+                if(!maint.startDate) return [];
+                let current = new Date(maint.startDate);
+                const today = new Date();
+                const endFuture = new Date();
+                endFuture.setFullYear(today.getFullYear() + 1); 
+
+                const periods = [];
+                
+                while (current <= endFuture) {
+                    const dateStr = current.toISOString().split('T')[0];
+                    const existing = maint.checklist ? maint.checklist.find(p => p.date === dateStr) : null;
+
+                    periods.push({
+                        date: dateStr,
+                        completed: existing ? existing.completed : false,
+                        comment: existing ? existing.comment : "",
+                        dateCompleted: existing ? existing.dateCompleted : null
+                    });
+
+                    current.setMonth(current.getMonth() + (parseInt(maint.periodMonths) || 1));
+                }
+                return periods;
+            },
+
+            toggleCheck: (maintId, periodDate, isCompleted) => {
+                const maint = DB.getById(maintId, 'maintenance');
+                if(!maint.checklist) maint.checklist = [];
+
+                const index = maint.checklist.findIndex(p => p.date === periodDate);
+                const newItem = {
+                    date: periodDate,
+                    completed: isCompleted,
+                    comment: index > -1 ? maint.checklist[index].comment : "",
+                    dateCompleted: isCompleted ? new Date().toISOString().split('T')[0] : null
+                };
+
+                if(index > -1) maint.checklist[index] = newItem;
+                else maint.checklist.push(newItem);
+
+                maint.checklist.sort((a,b) => new Date(a.date) - new Date(b.date));
+                DB.update(maint, 'maintenance', maintId);
+                MaintenanceModal.renderChecklist(maint);
+                MaintenanceModal.renderHistory(maint);
+            },
+
+            saveComment: (maintId, periodDate, comment) => {
+                const maint = DB.getById(maintId, 'maintenance');
+                const index = maint.checklist.findIndex(p => p.date === periodDate);
+                if(index > -1) {
+                    maint.checklist[index].comment = comment;
+                    DB.update(maint, 'maintenance', maintId);
+                    Toast.show('Comentario guardado', 'success');
+                }
+            }
+        };
+
+        // --- UI Module ---
+        const App = {
+            init: () => {
+                App.bindEvents();
+                Auth.check();
+            },
+            show: () => {
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('app-container').classList.remove('hidden');
+            },
+            switchView: (viewName) => {
+                state.currentView = viewName;
+                // Botones
+                document.getElementById('btn-view-projects').className = `btn ${viewName==='board'?'btn-primary':'btn-secondary'}`;
+                document.getElementById('btn-view-maintenance').className = `btn ${viewName==='maintenance'?'btn-maintenance':'btn-secondary'}`;
+                document.getElementById('btn-view-calendar').className = `btn ${viewName==='calendar'?'btn-primary':'btn-secondary'}`;
+
+                // Vistas
+                document.getElementById('view-board').classList.add('hidden');
+                document.getElementById('view-maintenance').classList.add('hidden');
+                document.getElementById('view-calendar').classList.add('hidden');
+                document.getElementById('stats-bar').classList.add('hidden');
+                document.getElementById('search-container').classList.add('hidden');
+
+                const btnAdd = document.getElementById('btn-add');
+
+                if(viewName === 'board') {
+                    document.getElementById('view-board').classList.remove('hidden');
+                    document.getElementById('stats-bar').classList.remove('hidden');
+                    document.getElementById('search-container').classList.remove('hidden');
+                    
+                    // CORRECCIÓN: Asegurarse de que el botón se muestre
+                    btnAdd.classList.remove('hidden'); 
+                    btnAdd.innerHTML = '<i class="fas fa-plus"></i>';
+                    btnAdd.onclick = () => ModalForm.open('project');
+                    App.renderBoard();
+                } else if (viewName === 'maintenance') {
+                    document.getElementById('view-maintenance').classList.remove('hidden');
+                    
+                    // CORRECCIÓN: Asegurarse de que el botón se muestre
+                    btnAdd.classList.remove('hidden');
+                    btnAdd.innerHTML = '<i class="fas fa-plus"></i> Cliente';
+                    btnAdd.onclick = () => ModalForm.open('maintenance');
+                    App.renderMaintenanceList();
+                } else {
+                    document.getElementById('view-calendar').classList.remove('hidden');
+                    btnAdd.classList.add('hidden'); // Aquí se oculta
+                    
+                    if(!state.calendar) App.initCalendar();
+                    
+                    // ARREGLO CALENDARIO: Forzar renderizado cuando la vista se hace visible
+                    requestAnimationFrame(() => {
+                        if(state.calendar) {
+                            state.calendar.render();
+                            App.renderCalendar();
+                        }
+                    });
+                }
+            },
+            initCalendar: () => {
+                const calendarEl = document.getElementById('view-calendar');
+                state.calendar = new FullCalendar.Calendar(calendarEl, {
+                    initialView: 'dayGridMonth',
+                    locale: 'es',
+                    editable: true, // Permite arrastrar
+                    headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' },
+                    eventDrop: (info) => {
+                        const parts = info.event.id.split('|');
+                        const newDate = info.event.startStr;
+
+                        // 1. LOGICA SI ARRASTRAS UN PROYECTO
+                        if (parts[0] === 'proj') {
+                            const projId = parts[1];
+                            const proj = DB.getById(projId, 'project');
+                            
+                            if (proj) {
+                                // Solo guardar si la fecha realmente cambió
+                                if (proj.dueDate !== newDate) {
+                                    proj.dueDate = newDate;
+                                    DB.update(proj, 'project', projId);
+                                    Toast.show('Fecha de proyecto actualizada', 'success');
+                                }
+                            }
+                        } 
+                        // 2. LOGICA SI ARRASTRAS UN MANTENIMIENTO
+                        else if (parts[0] === 'maint') {
+                            const maintId = parts[1];
+                            const oldDate = parts[2];
+                            
+                            const maint = DB.getById(maintId, 'maintenance');
+                            if (maint && maint.checklist) {
+                                // Buscar el item específico dentro del checklist del cliente
+                                const item = maint.checklist.find(p => p.date === oldDate);
+                                
+                                if (item && item.date !== newDate) {
+                                    item.date = newDate;
+                                    DB.update(maint, 'maintenance', maintId);
+                                    Toast.show('Periodo de mantenimiento movido', 'success');
+                                }
+                            }
+                        }
+                    },
+                    eventClick: function(info) {
+                        const parts = info.event.id.split('|');
+                        if(parts[0] === 'maint') {
+                            MaintenanceModal.open(parts[1]);
+                        } else {
+                            ProjectModal.open(parts[1]);
+                        }
+                    }
+                });
+                
+                // Render inicial
+                state.calendar.render();
+            },
+            renderCalendar: () => {
+                if (!state.calendar) return;
+                const events = [];
+
+                // Proyectos
+                state.projects.forEach(p => {
+                    let color = '#64748b';
+                    if (p.urgency === 'alta') color = '#ef4444';
+                    if (p.urgency === 'media') color = '#f59e0b';
+                    if (p.urgency === 'baja') color = '#10b981';
+                    events.push({
+                        id: `proj|${p.id}`,
+                        title: p.name,
+                        start: p.dueDate,
+                        backgroundColor: color,
+                        borderColor: color,
+                        className: 'fc-event-project'
+                    });
+                });
+
+                // Mantenimientos
+                state.maintenances.forEach(m => {
+                    const periods = MaintLogic.generatePeriods(m);
+                    periods.forEach(p => {
+                        events.push({
+                            id: `maint|${m.id}|${p.date}`,
+                            title: `Mant: ${m.name}`,
+                            start: p.date,
+                            backgroundColor: p.completed ? 'var(--success)' : 'var(--maint-color)',
+                            borderColor: p.completed ? 'var(--success)' : 'var(--maint-color)',
+                            opacity: p.completed ? 0.6 : 1,
+                            className: 'fc-event-maintenance'
+                        });
+                    });
+                });
+
+                state.calendar.removeAllEvents();
+                state.calendar.addEventSource(events);
+            },
+            bindEvents: () => {
+                document.getElementById('login-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    Auth.login(document.getElementById('username').value, document.getElementById('password').value);
+                });
+                document.getElementById('btn-logout').addEventListener('click', Auth.logout);
+                
+                document.getElementById('btn-view-projects').addEventListener('click', () => App.switchView('board'));
+                document.getElementById('btn-view-maintenance').addEventListener('click', () => App.switchView('maintenance'));
+                document.getElementById('btn-view-calendar').addEventListener('click', () => App.switchView('calendar'));
+
+                document.querySelectorAll('.close-modal').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        document.querySelectorAll('.modal-overlay').forEach(el => el.classList.add('hidden'));
+                    });
+                });
+                
+                // Formulario Compartido
+                document.getElementById('btn-save-project').addEventListener('click', () => ModalForm.save());
+
+                // Navegación Tabs Proyectos
+                document.querySelectorAll('#modal-details .tab-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        document.querySelectorAll('#modal-details .tab-btn').forEach(b => b.classList.remove('active'));
+                        document.querySelectorAll('#modal-details .tab-content').forEach(c => c.classList.add('hidden'));
+                        e.target.classList.add('active');
+                        document.getElementById(e.target.dataset.tab).classList.remove('hidden');
+                    });
+                });
+
+                // Navegación Tabs Mantenimientos
+                document.querySelectorAll('#modal-maintenance-details .tab-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        document.querySelectorAll('#modal-maintenance-details .tab-btn').forEach(b => b.classList.remove('active'));
+                        document.querySelectorAll('#modal-maintenance-details .tab-content').forEach(c => c.classList.add('hidden'));
+                        e.target.classList.add('active');
+                        document.getElementById(e.target.dataset.tab).classList.remove('hidden');
+                    });
+                });
+
+                document.getElementById('search-input').addEventListener('input', (e) => {
+                    App.renderBoard(e.target.value.toLowerCase());
+                });
+
+                // Eventos Proyecto
+                document.getElementById('d-status').addEventListener('change', (e) => ProjectModal.updateStatus(e.target.value));
+                document.getElementById('btn-add-note').addEventListener('click', ProjectModal.addNote);
+                document.getElementById('btn-delete-project').addEventListener('click', () => {
+                    if(confirm('¿Eliminar proyecto?')) ProjectModal.deleteCurrent();
+                });
+                document.getElementById('btn-edit-details').addEventListener('click', () => {
+                    const currentId = document.getElementById('modal-details').dataset.id;
+                    document.getElementById('modal-details').classList.add('hidden');
+                    ModalForm.open('project', currentId);
+                });
+            },
+            renderBoard: (filterText = '') => {
+                const cols = {
+                    pendiente: document.getElementById('col-pending'),
+                    en_proceso: document.getElementById('col-process'),
+                    realizado: document.getElementById('col-done')
+                };
+                Object.values(cols).forEach(col => col.innerHTML = '');
+                state.projects.forEach(p => {
+                    if(filterText && !p.name.toLowerCase().includes(filterText) && !p.contact.toLowerCase().includes(filterText)) return;
+                    const card = document.createElement('div');
+                    card.className = `project-card urgency-${p.urgency}`;
+                    card.innerHTML = `
+                        <span class="card-title">${p.name}</span>
+                        <div class="card-info"><i class="fas fa-user"></i> ${p.contact}</div>
+                        <div class="card-info"><i class="fas fa-calendar-alt"></i> ${p.dueDate}</div>
+                        <div class="card-footer">
+                            <span class="badge ${p.urgency === 'alta' ? 'text-danger' : (p.urgency === 'media' ? 'text-warning' : 'text-success')}">
+                                ${p.urgency.toUpperCase()}
+                            </span>
+                            <i class="fas fa-chevron-right text-secondary"></i>
+                        </div>
+                    `;
+                    card.addEventListener('click', () => ProjectModal.open(p.id));
+                    cols[p.status].appendChild(card);
+                });
+                document.getElementById('count-pending').innerText = cols.pendiente.children.length;
+                document.getElementById('count-process').innerText = cols.en_proceso.children.length;
+                document.getElementById('count-done').innerText = cols.realizado.children.length;
+            },
+            renderMaintenanceList: () => {
+                const container = document.getElementById('maint-list-container');
+                container.innerHTML = '';
+                state.maintenances.forEach(m => {
+                    const periods = MaintLogic.generatePeriods(m);
+                    const total = periods.length;
+                    const done = periods.filter(p => p.completed).length;
+
+                    const card = document.createElement('div');
+                    card.className = 'maint-card';
+                    card.innerHTML = `
+                        <div class="maint-title">${m.name}</div>
+                        <div class="text-sm text-secondary"><i class="fas fa-map-marker-alt"></i> ${m.location || '-'}</div>
+                        <div class="text-sm text-secondary" style="margin-top:5px;"><i class="fas fa-sync"></i> Periodo: ${m.periodMonths} mes(es)</div>
+                        <div style="margin-top:10px; font-size:0.85rem;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                                <span>Progreso: ${done}/${total}</span>
+                            </div>
+                            <div style="height:4px; background:#e2e8f0; border-radius:2px; overflow:hidden;">
+                                <div style="height:100%; background:var(--success); width:${total ? (done/total)*100 : 0}%"></div>
+                            </div>
+                        </div>
+                    `;
+                    card.onclick = () => MaintenanceModal.open(m.id);
+                    container.appendChild(card);
+                });
+            },
+            updateStats: () => {
+                const total = state.projects.length;
+                const p = state.projects.filter(p => p.status === 'pendiente').length;
+                const ep = state.projects.filter(p => p.status === 'en_proceso').length;
+                const r = state.projects.filter(p => p.status === 'realizado').length;
+                document.getElementById('stat-total').innerText = total;
+                document.getElementById('stat-pending').innerText = p;
+                document.getElementById('stat-process').innerText = ep;
+                document.getElementById('stat-done').innerText = r;
+            }
+        };
+
+        // --- FORMULARIO (COMPARTIDO) ---
+        const ModalForm = {
+            open: (type, id = null) => {
+                const modal = document.getElementById('modal-form');
+                const form = document.getElementById('project-form');
+                const title = document.getElementById('modal-title');
+                
+                modal.classList.remove('hidden');
+                form.reset();
+                
+                // Toggle Campos
+                const isProject = type === 'project';
+                document.getElementById('record-type').value = type;
+                document.getElementById('record-id').value = id || '';
+                document.getElementById('group-proj-date').classList.toggle('hidden', !isProject);
+                document.getElementById('group-proj-urgency').classList.toggle('hidden', !isProject);
+                document.getElementById('group-maint-start').classList.toggle('hidden', isProject);
+                document.getElementById('group-maint-period').classList.toggle('hidden', isProject);
+
+                title.innerText = isProject ? (id ? "Editar Proyecto" : "Nuevo Proyecto") : (id ? "Editar Mantenimiento" : "Nuevo Mantenimiento");
+
+                if (id) {
+                    const data = DB.getById(id, type);
+                    document.getElementById('p-name').value = data.name;
+                    document.getElementById('p-contact').value = data.contact;
+                    document.getElementById('p-phone').value = data.phone;
+                    document.getElementById('p-scope').value = data.scope;
+                    document.getElementById('p-location').value = data.location;
+                    document.getElementById('p-additional').value = data.additional;
+                    
+                    if(isProject) {
+                        document.getElementById('p-date').value = data.dueDate;
+                        document.getElementById('p-urgency').value = data.urgency;
+                    } else {
+                        document.getElementById('p-start-date').value = data.startDate;
+                        document.getElementById('p-period').value = data.periodMonths;
+                    }
+                } else {
+                    const today = new Date().toISOString().split('T')[0];
+                    if(isProject) {
+                        document.getElementById('p-date').value = today;
+                        document.getElementById('p-urgency').value = 'media';
+                    } else {
+                        document.getElementById('p-start-date').value = today;
+                        document.getElementById('p-period').value = 1;
+                    }
+                }
+            },
+            save: () => {
+                const id = document.getElementById('record-id').value;
+                const form = document.getElementById('project-form');
+                if (!form.checkValidity()) { form.reportValidity(); return; }
+                const type = document.getElementById('record-type').value; // 'project' o 'maintenance'
+                const isProject = type === 'project';
+
+                const data = {
+                    name: document.getElementById('p-name').value,
+                    contact: document.getElementById('p-contact').value,
+                    phone: document.getElementById('p-phone').value,
+                    scope: document.getElementById('p-scope').value,
+                    location: document.getElementById('p-location').value,
+                    additional: document.getElementById('p-additional').value,
+                };
+
+                if (isProject) {
+                    data.urgency = document.getElementById('p-urgency').value;
+                    data.dueDate = document.getElementById('p-date').value;
+                    if(!id) {
+                        data.status = 'pendiente';
+                        data.history = [{ date: new Date().toLocaleString(), type: 'create', note: 'Proyecto creado.' }];
+                    }
+                } else {
+                    data.startDate = document.getElementById('p-start-date').value;
+                    data.periodMonths = parseInt(document.getElementById('p-period').value);
+                    if(!id) data.checklist = [];
+                }
+
+                if (id) {
+                    if(isProject) {
+                        const existing = DB.getById(id, 'project');
+                        const historyChanges = [];
+                        const fieldsToCompare = [
+                            { key: 'name', label: 'Nombre' }, { key: 'contact', label: 'Contacto' }, { key: 'phone', label: 'Teléfono' },
+                            { key: 'scope', label: 'Alcance' }, { key: 'location', label: 'Ubicación' }, { key: 'dueDate', label: 'Fecha' }, { key: 'urgency', label: 'Urgencia' }
+                        ];
+                        fieldsToCompare.forEach(field => {
+                            if (existing[field.key] !== data[field.key]) {
+                                historyChanges.push({ field: field.label, old: existing[field.key] || '(vacío)', new: data[field.key] });
+                            }
+                        });
+                        const updated = { ...existing, ...data };
+                        if (historyChanges.length > 0) {
+                            updated.history.unshift({ date: new Date().toLocaleString(), type: 'change', details: historyChanges });
+                        }
+                        DB.update(updated, 'project', id);
+                    } else {
+                        const existing = DB.getById(id, 'maintenance');
+                        const updated = { ...existing, ...data };
+                        DB.update(updated, 'maintenance', id);
+                    }
+                } else {
+                    DB.add(data, type);
+                }
+                document.getElementById('modal-form').classList.add('hidden');
+            }
+        };
+
+        // --- MODAL PROYECTOS (ORIGINAL) ---
+        const ProjectModal = {
+            currentId: null,
+            open: (id) => {
+                const p = DB.getById(id, 'project');
+                if(!p) return;
+                ProjectModal.currentId = id;
+                const modal = document.getElementById('modal-details');
+                modal.dataset.id = id;
+                modal.classList.remove('hidden');
+                document.getElementById('d-title').innerText = p.name;
+                document.getElementById('d-status').value = p.status;
+                const infoDiv = document.getElementById('info-content');
+                infoDiv.innerHTML = `
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-bottom:1rem;">
+                        <div>
+                            <label class="text-secondary text-sm">Contacto</label>
+                            <div>${p.contact}</div>
+                            <div><a href="tel:${p.phone}" class="text-primary"><i class="fas fa-phone"></i> ${p.phone}</a></div>
+                        </div>
+                        <div>
+                            <label class="text-secondary text-sm">Fecha & Urgencia</label>
+                            <div><i class="fas fa-calendar"></i> ${p.dueDate}</div>
+                            <div class="badge" style="color:${p.urgency === 'alta' ? 'var(--danger)' : 'var(--secondary)'}">${p.urgency.toUpperCase()}</div>
+                        </div>
+                    </div>
+                    <div style="margin-bottom:1rem;">
+                        <label class="text-secondary text-sm">Ubicación</label>
+                        <div>${p.location || '-'}</div>
+                    </div>
+                    <div style="margin-bottom:1rem;">
+                        <label class="text-secondary text-sm">Alcance</label>
+                        <div style="background:#f8fafc; padding:0.5rem; border-radius:4px;">${p.scope || '-'}</div>
+                    </div>
+                    <div>
+                        <label class="text-secondary text-sm">Adicional</label>
+                        <div style="font-style:italic; color:var(--secondary);">${p.additional || 'Sin información adicional'}</div>
+                    </div>
+                `;
+                ProjectModal.renderHistory(p);
+            },
+            renderHistory: (project) => {
+                const list = document.getElementById('history-list');
+                list.innerHTML = '';
+                if(project.history) {
+                    project.history.forEach(h => {
+                        const item = document.createElement('div');
+                        item.className = 'history-item';
+                        let contentHTML = `<span class="history-date">${h.date}</span>`;
+                        if (h.type === 'change' && h.details) {
+                            h.details.forEach(det => {
+                                contentHTML += `<div class="change-detail"><span class="change-field">${det.field}:</span><div><span class="change-old">${det.old}</span> <span class="change-arrow">➔</span> <span class="change-new">${det.new}</span></div></div>`;
+                            });
+                        } else if (h.type === 'status-change') {
+                            contentHTML += `<div><i class="fas fa-sync-alt"></i> ${h.note}</div>`;
+                        } else {
+                            contentHTML += `<div>${h.note}</div>`;
+                        }
+                        item.innerHTML = contentHTML;
+                        list.appendChild(item);
+                    });
+                }
+            },
+            updateStatus: (newStatus) => {
+                const p = DB.getById(ProjectModal.currentId, 'project');
+                const oldStatus = p.status;
+                if(oldStatus !== newStatus) {
+                    p.status = newStatus;
+                    p.history.unshift({
+                        date: new Date().toLocaleString(),
+                        type: 'status-change',
+                        note: `Cambio de estado: ${oldStatus.toUpperCase()} -> ${newStatus.toUpperCase()}`
+                    });
+                    DB.update(p, 'project', ProjectModal.currentId);
+                    ProjectModal.renderHistory(p);
+                    Toast.show('Estado actualizado', 'success');
+                }
+            },
+            addNote: () => {
+                const noteInput = document.getElementById('new-note');
+                const text = noteInput.value.trim();
+                if(!text) return;
+                const p = DB.getById(ProjectModal.currentId, 'project');
+                p.history.unshift({
+                    date: new Date().toLocaleString(),
+                    type: 'note',
+                    note: `Nota: ${text}`
+                });
+                DB.update(p, 'project', ProjectModal.currentId);
+                noteInput.value = '';
+                ProjectModal.renderHistory(p);
+                Toast.show('Nota agregada', 'success');
+            },
+            deleteCurrent: () => {
+                DB.delete(ProjectModal.currentId, 'project');
+                document.getElementById('modal-details').classList.add('hidden');
+            }
+        };
+
+        // --- MODAL MANTENIMIENTOS (ACTUALIZADO CON ALCANCE Y BORRAR) ---
+        const MaintenanceModal = {
+            currentId: null,
+            open: (id) => {
+                const m = DB.getById(id, 'maintenance');
+                if(!m) return;
+                MaintenanceModal.currentId = id;
+                const modal = document.getElementById('modal-maintenance-details');
+                modal.classList.remove('hidden');
+
+                // Info Cabecera
+                document.getElementById('md-client-name').innerText = m.name;
+                document.getElementById('md-contact').innerText = m.contact || 'Sin contacto';
+                document.getElementById('md-location').innerText = m.location || '-';
+                document.getElementById('md-phone').innerText = m.phone || '-';
+                
+                // NUEVO: MOSTRAR ALCANCE
+                document.getElementById('md-scope').innerText = m.scope || 'Sin alcance definido';
+                
+                document.getElementById('md-period-val').innerText = m.periodMonths;
+
+                // Editar Info
+                document.getElementById('md-btn-edit').onclick = () => {
+                    modal.classList.add('hidden');
+                    ModalForm.open('maintenance', id);
+                };
+
+                // NUEVO: ELIMINAR
+                document.getElementById('md-btn-delete').onclick = () => {
+                    if(confirm('¿Estás seguro de eliminar este mantenimiento? Se borrará todo el historial y la programación.')) {
+                        DB.delete(id, 'maintenance');
+                        modal.classList.add('hidden');
+                    }
+                };
+
+                // Render Tabs
+                MaintenanceModal.renderChecklist(m);
+                MaintenanceModal.renderHistory(m);
+            },
+            renderChecklist: (m) => {
+                const wrapper = document.getElementById('md-checklist-wrapper');
+                wrapper.innerHTML = '';
+                const periods = MaintLogic.generatePeriods(m);
+
+                if(!periods.length) {
+                    wrapper.innerHTML = '<div style="padding:1rem; text-align:center; color:var(--secondary);">Define una fecha de inicio para generar períodos.</div>';
+                    return;
+                }
+
+                periods.forEach(p => {
+                    const item = document.createElement('div');
+                    item.className = `checklist-item ${p.completed ? 'done' : ''}`;
+                    
+                    // Checkbox Row
+                    let html = `
+                        <div class="check-row">
+                            <input type="checkbox" class="check-box" ${p.completed ? 'checked' : ''}>
+                            <span class="check-date">${p.date}</span>
+                            <span class="check-status ${p.completed ? 'done' : ''}">${p.completed ? 'Realizado' : 'Pendiente'}</span>
+                        </div>
+                    `;
+
+                    // Si completado, mostrar input de comentario
+                    if(p.completed) {
+                        html += `
+                            <div class="check-comment-box">
+                                <input type="text" class="comment-input" placeholder="Agregar comentario..." value="${p.comment || ''}" data-date="${p.date}">
+                            </div>
+                        `;
+                    }
+
+                    item.innerHTML = html;
+                    
+                    // Eventos
+                    const checkbox = item.querySelector('.check-box');
+                    checkbox.onchange = () => MaintLogic.toggleCheck(m.id, p.date, checkbox.checked);
+
+                    const inputComment = item.querySelector('.comment-input');
+                    if(inputComment) {
+                        // Guardar comentario al perder foco (blur)
+                        inputComment.onblur = () => MaintLogic.saveComment(m.id, p.date, inputComment.value);
+                        inputComment.onkeypress = (e) => { if(e.key === 'Enter') inputComment.blur(); };
+                    }
+
+                    wrapper.appendChild(item);
+                });
+            },
+            renderHistory: (m) => {
+                const list = document.getElementById('md-history-list');
+                list.innerHTML = '';
+                if(m.checklist) {
+                    // Filtrar solo los completados
+                    const doneList = m.checklist.filter(p => p.completed).sort((a,b) => new Date(b.date) - new Date(a.date));
+                    
+                    doneList.forEach(p => {
+                        const item = document.createElement('div');
+                        item.className = 'history-item-maint';
+                        item.innerHTML = `
+                            <div><strong>Fecha: ${p.date}</strong> <span style="color:var(--success); font-size:0.8rem;">(Completado)</span></div>
+                            <div class="history-comment">Comentario: ${p.comment || 'Sin comentarios'}</div>
+                        `;
+                        list.appendChild(item);
+                    });
+
+                    if(doneList.length === 0) list.innerHTML = '<div style="padding:1rem; color:var(--secondary); text-align:center;">No hay mantenimientos registrados aún.</div>';
+                }
+            }
+        };
+
+        const Toast = {
+            show: (msg, type = 'info') => {
+                const container = document.getElementById('toast-container');
+                const toast = document.createElement('div');
+                toast.className = 'toast';
+                let icon = '<i class="fas fa-info-circle"></i>';
+                if(type === 'success') icon = '<i class="fas fa-check-circle text-success"></i>';
+                if(type === 'warning') icon = '<i class="fas fa-exclamation-triangle text-warning"></i>';
+                toast.innerHTML = `${icon} <span>${msg}</span>`;
+                container.appendChild(toast);
+                setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', App.init);
+    </script>
+    
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js')
+          .then(() => console.log('Service Worker Registrado'))
+          .catch(err => console.log('Error SW:', err));
+      }
+    </script>
+</body>
+</html>
